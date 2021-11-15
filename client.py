@@ -36,13 +36,13 @@ def individual_auth():
         received_data = [str(data) for data in received_data[0:3]]
         received_data.append(auth_code)
 
-        response = (":").join(received_data)
+        response = (":").join(received_data[1:])
         print(response)
 
         socket_instance.close()
 
 
-def individual_verify():
+def individual_validate():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as socket_instance:
         socket_instance.connect((HOST, PORT))
 
@@ -60,17 +60,11 @@ def individual_verify():
 
         socket_instance.sendall(message)
 
-        received_data = unpack("!hii64s?", socket_instance.recv(1024))
+        received_data = unpack("!hii64sb", socket_instance.recv(1024))
 
-        auth_code = received_data[3].decode()
-        teste = received_data[4]
+        validation_result = received_data[4]
 
-        received_data = [str(data) for data in received_data[0:3]]
-        received_data.append(auth_code)
-        received_data.append(str(teste))
-
-        response = (":").join(received_data)
-        print(response)
+        print(validation_result)
 
         socket_instance.close()
 
@@ -78,4 +72,4 @@ def individual_verify():
 if COMMAND_NAME == "rsaa":
     individual_auth()
 elif COMMAND_NAME == "vsaa":
-    individual_verify()
+    individual_validate()
