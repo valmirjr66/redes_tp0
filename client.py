@@ -30,6 +30,22 @@ if COMMAND_NAME == "vsaa" and len(sys.argv) != 5:
     raise Exception("Invalid input format.")
 
 
+def check_error(response):
+    if(len(response) == 4):
+        unpacked_error = unpack("!hh", response)[1]
+
+        if(unpacked_error == 1):
+            raise Exception("Invalid message code.")
+        elif(unpacked_error == 2):
+            raise Exception("Incorrect message length.")
+        elif(unpacked_error == 3):
+            raise Exception("Invalid parameter.")
+        elif(unpacked_error == 4):
+            raise Exception("Invalid single token.")
+        elif(unpacked_error == 5):
+            raise Exception("ASCII decode error.")
+
+
 def individual_auth():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as socket_instance:
         socket_instance.connect((HOST, PORT))
@@ -41,7 +57,10 @@ def individual_auth():
 
         socket_instance.sendall(message)
 
-        received_data = unpack("!hii64s", socket_instance.recv(1024))
+        socket_response = socket_instance.recv(1024)
+        check_error(socket_response)
+
+        received_data = unpack("!hii64s", socket_response)
 
         auth_code = received_data[3].decode()
 
@@ -70,7 +89,10 @@ def individual_validate():
 
         socket_instance.sendall(message)
 
-        received_data = unpack("!hii64sb", socket_instance.recv(1024))
+        socket_response = socket_instance.recv(1024)
+        check_error(socket_response)
+
+        received_data = unpack("!hii64sb", socket_response)
 
         validation_result = received_data[-1]
 
@@ -114,8 +136,11 @@ def collective_auth():
 
         socket_instance.sendall(message)
 
+        socket_response = socket_instance.recv(1024)
+        check_error(socket_response)
+
         received_data = np.asarray(
-            unpack(response_pattern, socket_instance.recv(1024))).tolist()
+            unpack(response_pattern, socket_response)).tolist()
         auth_code = received_data.pop().decode()
 
         received_data = received_data[2:]
@@ -170,7 +195,9 @@ def collective_validate():
             response_pattern += "ii64s"
         response_pattern += "64sb"
 
-        received_data = unpack(response_pattern, socket_instance.recv(1024))
+        socket_response = socket_instance.recv(1024)
+        check_error(socket_response)
+        received_data = unpack(response_pattern, socket_response)
 
         validation_result = received_data[-1]
 
