@@ -26,6 +26,9 @@ if COMMAND_NAME == "rsag":
     if len(sys.argv) != (5 + saa_quantity):
         raise Exception("Invalid input format.")
 
+if COMMAND_NAME == "vsaa" and len(sys.argv) != 5:
+    raise Exception("Invalid input format.")
+
 
 def individual_auth():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as socket_instance:
@@ -69,12 +72,12 @@ def individual_validate():
 
         received_data = unpack("!hii64sb", socket_instance.recv(1024))
 
-        validation_result = received_data[4]
+        validation_result = received_data[-1]
 
         print(validation_result)
 
 
-def colective_auth():
+def collective_auth():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as socket_instance:
         socket_instance.connect((HOST, PORT))
 
@@ -131,8 +134,47 @@ def colective_auth():
         print(response)
 
 
-def colective_validate():
-    print("a")
+def collective_validate():
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as socket_instance:
+        socket_instance.connect((HOST, PORT))
+
+        args_list = COMMAND_ARGS[0].split("+")
+        collective_auth_code_raw = args_list.pop()
+
+        flag = pack("!h", 7)
+        validation_size = pack("!h", len(args_list))
+        message = flag + validation_size
+
+        for arg in args_list:
+            saa = arg.split(":")
+
+            registration_raw = saa[0]
+            identifier_raw = saa[1]
+            individual_auth_code_raw = saa[2]
+
+            registration = pack("!i", int(registration_raw))
+            identifier = pack("!i", int(identifier_raw))
+            individual_auth_code = pack(
+                "!64s", individual_auth_code_raw.encode("utf-8"))
+
+            message += registration + identifier + individual_auth_code
+
+        collective_auth_code = pack(
+            "!64s", collective_auth_code_raw.encode("utf-8"))
+        message += collective_auth_code
+
+        socket_instance.sendall(message)
+
+        response_pattern = "!hh"
+        for i in range(len(args_list)):
+            response_pattern += "ii64s"
+        response_pattern += "64sb"
+
+        received_data = unpack(response_pattern, socket_instance.recv(1024))
+
+        validation_result = received_data[-1]
+
+        print(validation_result)
 
 
 if COMMAND_NAME == "rsaa":
@@ -140,6 +182,6 @@ if COMMAND_NAME == "rsaa":
 elif COMMAND_NAME == "vsaa":
     individual_validate()
 elif COMMAND_NAME == "rsag":
-    colective_auth()
+    collective_auth()
 elif COMMAND_NAME == "vsag":
-    individual_validate()
+    collective_validate()
